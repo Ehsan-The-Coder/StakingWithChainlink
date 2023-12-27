@@ -9,7 +9,7 @@ const COIN_MARKET_CAP_API = process.env.COIN_MARKET_CAP_API || "";
 const SEPOLIA_RPC_URL_BY_INFURA = process.env.SEPOLIA_RPC_URL_BY_INFURA || "";
 const METAMASK_PRIVATE_KEY_1 = process.env.METAMASK_PRIVATE_KEY_1 || "";
 const METAMASK_PRIVATE_KEY_2 = process.env.METAMASK_PRIVATE_KEY_2 || "";
-
+const MAINNET_RPC_URL_FOR_FORKING = process.env.MAINNET_RPC_URL_FOR_FORKING;
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 const GANACHE_RPC_URL = process.env.GANACHE_RPC_URL;
 const GANACHE_MNEMONIC = process.env.GANACHE_MNEMONIC;
@@ -20,6 +20,9 @@ module.exports = {
           hardhat: {
                chainId: 31337,
                // gasPrice: 130000000000,
+               // forking: {
+               //      url: MAINNET_RPC_URL_FOR_FORKING,
+               // },
           },
           localhost: {
                // for this yarn hardhat node must be running otherwise throw error
