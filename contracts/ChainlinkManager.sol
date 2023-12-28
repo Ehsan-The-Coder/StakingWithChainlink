@@ -49,18 +49,14 @@ library ChainlinkManager {
 
      /**
       *
-      * @param ethAmount amount you want to convert
+      * @param amount amount you want to convert
       * @param priceFeed address of the chain
       */
-     function getConversionRate(
-          uint256 ethAmount,
-          AggregatorV3Interface priceFeed
-     ) internal view returns (uint256) {
-          uint256 ethPrice = getPrice(priceFeed);
-          uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1000000000000000000;
-          // or (Both will do the same thing)
-          // uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18; // 1 * 10 ** 18 == 1000000000000000000
-          // the actual ETH/USD conversion rate, after adjusting the extra 0s.
-          return ethAmountInUsd;
+     function getTotalStakedAmount(
+          AggregatorV3Interface priceFeed,
+          uint256 amount
+     ) internal view returns (uint256 totalAmount) {
+          uint256 price = getPrice(priceFeed);
+          totalAmount = (price * amount);
      }
 }

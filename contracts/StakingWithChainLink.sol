@@ -24,8 +24,11 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      /**
       * @dev mapping that allows to store Chainlink price feed address
       */
-     mapping(IERC20 => AggregatorV3Interface) public s_stakingTokenPriceFeed;
-
+     mapping(IERC20 token => AggregatorV3Interface priceFeed)
+          public s_stakingTokenPriceFeed;
+     mapping(IERC20 token => mapping(address user => uint256 balance))
+          public s_tokenStakedByUser;
+     mapping(address user => uint256 balance) public s_balanceOf;
      //<----------------------------events---------------------------->
      event TokenListedForStaking(
           IERC20 indexed token,
@@ -42,7 +45,15 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      constructor() Ownable(msg.sender) {}
 
      //<----------------------------external functions---------------------------->
-     function stake(IERC20 token, uint256 amount) external {}
+     function stake(IERC20 token, uint256 amount) external {
+          token.transferFrom(msg.sender, address(this), amount);
+          uint256 totalAmount = ChainlinkManager.getTotalStakedAmount(
+               s_stakingTokenPriceFeed[token],
+               amount
+          );
+          s_balanceOf[msg.sender] += totalAmount;
+          s_tokenStakedByUser[token][msg.sender] += amount;
+     }
 
      //<----------------------------external/public view/pure functions---------------------------->
 
