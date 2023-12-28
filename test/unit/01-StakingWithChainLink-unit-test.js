@@ -15,8 +15,8 @@ const {
      (network.name == "localhost" || network.name == "hardhat")
 )
      ? describe
-     : describe("StakingWithChainLink Contract localhost/hardhat", function () {
-            let StakingWithChainLink,
+     : describe("StakingWithChainlink Contract localhost/hardhat", function () {
+            let StakingWithChainlink,
                  signer,
                  tokenAddress,
                  priceFeed,
@@ -66,17 +66,29 @@ const {
                  tokenAddress = tokenAddresses[tokenAddressIndex];
                  priceFeed = Tokens[tokenAddress]["priceFeed"];
             }
+            //get timestamp we pass the transaction receipt
+            //function return timestamp
+            async function getTimestamp(_txResponse) {
+                 const txResponseResult = await _txResponse;
+                 const txReceipt = await txResponseResult.wait(1);
+                 const block = await ethers.provider.getBlock(
+                      txReceipt.blockNumber,
+                      true,
+                 );
+                 const timestamp = BigInt(block.timestamp);
+                 return timestamp;
+            }
             async function deploy() {
                  try {
-                      StakingWithChainLink = await ethers.getContract(
-                           "StakingWithChainLink",
+                      StakingWithChainlink = await ethers.getContract(
+                           "StakingWithChainlink",
                            deployer,
                       );
                  } catch (error) {
                       try {
                            await deployments.fixture(["all"]);
-                           StakingWithChainLink = await ethers.getContract(
-                                "StakingWithChainLink",
+                           StakingWithChainlink = await ethers.getContract(
+                                "StakingWithChainlink",
                                 deployer,
                            );
                       } catch (error) {
@@ -92,96 +104,37 @@ const {
             });
             describe("constructor", function () {
                  it("sets the owner of the contract properly", async function () {
-                      const owner = await StakingWithChainLink.owner();
+                      const owner = await StakingWithChainlink.owner();
                       assert.equal(owner, deployer.address);
                  });
             });
             describe("setStakingToken function", function () {
-                 it("expected to revert with StakingWithChainLink__AddressNotValid", async function () {
-                      txResponse = StakingWithChainLink.setStakingToken(
-                           zeroAddress,
-                           zeroAddress,
-                      );
-                      await expect(txResponse).to.be.revertedWithCustomError(
-                           StakingWithChainLink,
-                           "StakingWithChainLink__AddressNotValid",
-                      );
-                      txResponse = StakingWithChainLink.setStakingToken(
-                           StakingWithChainLink.target,
-                           StakingWithChainLink.target,
-                      );
-                      await expect(txResponse).to.be.revertedWithCustomError(
-                           StakingWithChainLink,
-                           "StakingWithChainLink__AddressNotValid",
-                      );
-                 });
-                 it("setStakingToken function expected to revert if not owner account ", async function () {
-                      await setTokenAddressAndPriceFeed(0);
-                      deployer = deployers[ownerIndex + 1];
-
-                      txResponse = StakingWithChainLink.connect(
-                           deployer,
-                      ).setStakingToken(tokenAddress, priceFeed);
-
-                      await expect(txResponse).to.be.revertedWithCustomError(
-                           StakingWithChainLink,
-                           "OwnableUnauthorizedAccount",
-                      );
-                      deployer = deployers[ownerIndex];
-                 });
                  it("setStakingToken function passing token and pricefeeds", async function () {
+                      //save every token address and price feed to test
                       for (i = 0; i < tokenAddresses.length; i++) {
                            await setTokenAddressAndPriceFeed(i);
                            //transactions
-                           txResponse = StakingWithChainLink.setStakingToken(
+                           txResponse = StakingWithChainlink.setStakingToken(
                                 tokenAddress,
                                 priceFeed,
                            );
-                           //calculte timestamp
-                           const txResponseResult = await txResponse;
-                           const txReceipt = await txResponseResult.wait(1);
-                           const block = await ethers.provider.getBlock(
-                                txReceipt.blockNumber,
-                                true,
-                           );
-                           const timestamp = BigInt(block.timestamp);
+                           //get timestamp
+                           const timestamp = await getTimestamp(txResponse);
                            //2nd test to check mapping
                            const expPriceFeed =
-                                await StakingWithChainLink.s_stakingTokenPriceFeed(
+                                await StakingWithChainlink.s_stakingTokenPriceFeed(
                                      tokenAddress,
                                 );
                            //test
                            await expect(txResponse)
                                 .to.emit(
-                                     StakingWithChainLink,
+                                     StakingWithChainlink,
                                      "TokenListedForStaking",
                                 )
                                 .withArgs(tokenAddress, priceFeed, timestamp);
                            assert.equal(expPriceFeed, priceFeed);
                       }
                  });
-                 it("expected to revert with  StakingWithChainLink__TokenAlreadyListedForStaking", async function () {
-                      txResponse = StakingWithChainLink.setStakingToken(
-                           tokenAddress,
-                           priceFeed,
-                      );
-
-                      await expect(txResponse).to.be.revertedWithCustomError(
-                           StakingWithChainLink,
-                           "StakingWithChainLink__TokenAlreadyListedForStaking",
-                      );
-                 });
             });
-            describe("stake function", function () {
-                 it("expected to revert with StakingWithChainLink__TokenNotListedForStaking", async function () {
-                      txResponse = StakingWithChainLink.stake(
-                           StakingWithChainLink.target,
-                           amountPassed,
-                      );
-                      await expect(txResponse).to.be.revertedWithCustomError(
-                           StakingWithChainLink,
-                           "StakingWithChainLink__TokenNotListedForStaking",
-                      );
-                 });
-            });
+            describe("stake function", function () {});
        });

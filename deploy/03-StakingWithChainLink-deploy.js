@@ -7,7 +7,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
      const { deploy, log } = deployments;
      const { deployer } = await getNamedAccounts();
 
-     const StakingWithChainLink = await deploy("StakingWithChainLink", {
+     const StakingWithChainlink = await deploy("StakingWithChainlink", {
           from: deployer,
           args: [],
           log: true,
@@ -17,8 +17,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
           !developmentChains.includes(network.name) &&
           process.env.ETHERSCAN_API_KEY
      ) {
-          await verify(StakingWithChainLink.address, []);
+          await verify(StakingWithChainlink.address, []);
      }
      log("---------------------------------------------------------");
 };
-module.exports.tags = ["all", "StakingWithChainLink"];
+module.exports.tags = ["all", "StakingWithChainlink"];

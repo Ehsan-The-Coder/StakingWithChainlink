@@ -20,9 +20,10 @@ module.exports = {
           hardhat: {
                chainId: 31337,
                // gasPrice: 130000000000,
-               // forking: {
-               //      url: MAINNET_RPC_URL_FOR_FORKING,
-               // },
+               forking: {
+                    url: MAINNET_RPC_URL_FOR_FORKING,
+                    blockNumber: 18882986,
+               },
           },
           localhost: {
                // for this yarn hardhat node must be running otherwise throw error

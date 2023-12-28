@@ -5,33 +5,48 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/Ag
 import "hardhat/console.sol";
 
 /**
- * @title This library return the price feed from chainlink
+ * @title This library return the price feed from Chainlink
  * @author Muhammad Ehsan
  * Inspired from https://github.com/PatrickAlphaC
- * @notice You are going to pass address and currency
+ * @notice You are going to pass address and this return the price of token/asset
  */
-library PriceConverter {
+library ChainlinkManager {
+     error ChainlinkManager__RevertedThePriceFeed(
+          AggregatorV3Interface priceFeed,
+          bytes reason
+     );
+
      /**
       * @param priceFeed passing the price feed address
-      * @return price of specific token
+      * @return price of specific token with 18 decimals
+      * @notice through error if the price feed contract is not availabe on Chainlink
       */
      function getPrice(
           AggregatorV3Interface priceFeed
      ) internal view returns (uint256 price) {
           //https://docs.chain.link/data-feeds/using-data-feeds
-          (, int256 answer, , , ) = priceFeed.latestRoundData();
-          //different price feed have different decimals
-          //so making them same to 18 decimals
-          uint64 decimals = 18 - priceFeed.decimals();
-          if (decimals > 0) {
-               price = uint256(answer) * 10 ** decimals;
-          } else {
-               price = uint256(answer);
+          //catching the error if the address passed is not valid
+          try priceFeed.latestRoundData() returns (
+               uint80 /*roundID*/,
+               int256 answer,
+               uint256 /*startedAt*/,
+               uint256 /*timeStamp*/,
+               uint80 /*answeredInRound*/
+          ) {
+               //different price feed have different decimals
+               //so making them same to 18 decimals
+               uint64 decimals = 18 - priceFeed.decimals();
+               if (decimals > 0) {
+                    price = uint256(answer) * 10 ** decimals;
+               } else {
+                    price = uint256(answer);
+               }
+          } catch (bytes memory reason) {
+               revert ChainlinkManager__RevertedThePriceFeed(priceFeed, reason);
           }
           return price;
      }
 
-     // 1000000000
      /**
       *
       * @param ethAmount amount you want to convert
