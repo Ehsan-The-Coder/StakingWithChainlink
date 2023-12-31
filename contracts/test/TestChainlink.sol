@@ -10,8 +10,8 @@ import "hardhat/console.sol";
  * Inspired from https://github.com/PatrickAlphaC
  * @notice You are going to pass address and this return the price of token/asset
  */
-library ChainlinkManager {
-     error ChainlinkManager__RevertedThePriceFeed(
+contract TestChainlink {
+     error TestChainlink__RevertedThePriceFeed(
           AggregatorV3Interface priceFeed,
           bytes reason
      );
@@ -42,24 +42,24 @@ library ChainlinkManager {
                     price = uint256(answer);
                }
           } catch (bytes memory reason) {
-               revert ChainlinkManager__RevertedThePriceFeed(priceFeed, reason);
+               revert TestChainlink__RevertedThePriceFeed(priceFeed, reason);
           }
           return price;
      }
 
      /**
       *
-      * @param quantity value/amount you want to convert
+      * @param amount amount you want to convert
       * @param priceFeed address of the chain
       */
      function getTotalStakedAmount(
           AggregatorV3Interface priceFeed,
-          uint256 quantity
-     ) internal view returns (uint256 totalAmount) {
+          uint256 amount
+     ) public view returns (uint256 totalAmount) {
           uint256 price = getPrice(priceFeed);
+          //1e13 keep only 5 decimal places
           if (price > 0) {
-               //1e13 keep only 5 decimal places
-               totalAmount = ((price * quantity) / 1e13);
+               totalAmount = ((price * amount) / 1e13);
           }
      }
 }

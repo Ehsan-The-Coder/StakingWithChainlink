@@ -25,45 +25,131 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
       * @dev mapping that allows to store Chainlink price feed address
       */
      mapping(IERC20 token => AggregatorV3Interface priceFeed)
-          public s_stakingTokenPriceFeed;
-     mapping(IERC20 token => mapping(address user => uint256 balance))
-          public s_tokenStakedByUser;
-     mapping(address user => uint256 balance) public s_balanceOf;
+          public s_tokenPriceFeed;
+     mapping(IERC20 token => mapping(address staker => uint256 tokenAmount))
+          public s_stakerTokenQuantity;
+     mapping(IERC20 token => mapping(address staker => uint256 amountUSD))
+          public s_stakerTokenAmountUSD;
+     mapping(address staker => uint256 balance) public s_stakerBalanceUSD;
+     uint256 public s_totalAmountUSD;
+     uint256 public s_Reward;
      //<----------------------------events---------------------------->
-     event TokenListedForStaking(
+
+     //isAdded=true, when change is positive
+     //isAdded=false, when change is Nigitive
+     event TokenListedForStakingChanged(
           IERC20 indexed token,
           AggregatorV3Interface indexed priceFeed,
-          uint256 indexed timestamp
+          uint256 indexed timestamp,
+          bool isAdded
      );
-
+     event TokenStakingQuantityChanged(
+          IERC20 indexed token,
+          address indexed changer,
+          uint256 quantity,
+          bool isAdded
+     );
+     event AmountStakedUSDChanged(
+          IERC20 indexed token,
+          address indexed changer,
+          uint256 amountUSD,
+          bool isAdded
+     );
+     event TotalAmountSatkedChangedUSD(
+          address indexed changer,
+          uint256 totalStakedAmountUSD,
+          bool isAdded
+     );
+     event StakerBalanceChangedUSD(
+          address indexed changer,
+          uint256 balance,
+          bool isAdded
+     );
      //<----------------------------custom errors---------------------------->
+     error StakingWithChainlink__AddressNotValid(address _address);
 
      //<----------------------------modifiers---------------------------->
+     //this checks that address is contract address or other address
+     modifier isContract(address _address) {
+          if (!Utilis.isContract(_address)) {
+               revert StakingWithChainlink__AddressNotValid(_address);
+          }
+          _;
+     }
 
      //<----------------------------functions---------------------------->
      //<----------------------------constructor---------------------------->
      constructor() Ownable(msg.sender) {}
 
      //<----------------------------external functions---------------------------->
-     function stake(IERC20 token, uint256 amount) external {
-          token.transferFrom(msg.sender, address(this), amount);
-          uint256 totalAmount = ChainlinkManager.getTotalStakedAmount(
-               s_stakingTokenPriceFeed[token],
-               amount
+     function setStakingToken(
+          IERC20 token,
+          AggregatorV3Interface priceFeed
+     ) external isContract(address(token)) isContract(address(priceFeed)) {
+          s_tokenPriceFeed[token] = priceFeed;
+          emit TokenListedForStakingChanged(
+               token,
+               priceFeed,
+               block.timestamp,
+               true
           );
-          s_balanceOf[msg.sender] += totalAmount;
-          s_tokenStakedByUser[token][msg.sender] += amount;
+     }
+
+     function stake(
+          IERC20 token,
+          uint256 quantity
+     ) external isContract(address(token)) {
+          token.transferFrom(msg.sender, address(this), quantity);
+          uint256 amountUSD = ChainlinkManager.getTotalStakedAmount(
+               s_tokenPriceFeed[token],
+               quantity
+          );
+
+          _stake(token, quantity, amountUSD);
+     }
+
+     function unStake(IERC20 token) external isContract(address(token)) {
+          uint256 amountUSD = s_stakerTokenAmountUSD[token][msg.sender];
+          uint256 quantity = s_stakerTokenQuantity[token][msg.sender];
+
+          _unStake(token, quantity, amountUSD);
      }
 
      //<----------------------------external/public view/pure functions---------------------------->
 
      //<----------------------------private functions---------------------------->
-     function setStakingToken(
+     function _stake(
           IERC20 token,
-          AggregatorV3Interface priceFeed
-     ) external {
-          s_stakingTokenPriceFeed[token] = priceFeed;
-          emit TokenListedForStaking(token, priceFeed, block.timestamp);
+          uint256 quantity,
+          uint256 amountUSD
+     ) private {
+          s_totalAmountUSD += amountUSD;
+          s_stakerTokenQuantity[token][msg.sender] += quantity;
+          s_stakerBalanceUSD[msg.sender] += amountUSD;
+          s_stakerTokenAmountUSD[token][msg.sender] += amountUSD;
+
+          emit TotalAmountSatkedChangedUSD(msg.sender, amountUSD, true);
+          emit TokenStakingQuantityChanged(token, msg.sender, quantity, true);
+          emit AmountStakedUSDChanged(token, msg.sender, amountUSD, true);
+          emit StakerBalanceChangedUSD(msg.sender, amountUSD, true);
+     }
+
+     function _unStake(
+          IERC20 token,
+          uint256 amountUSD,
+          uint256 quantity
+     ) private {
+          s_stakerTokenAmountUSD[token][msg.sender] = 0;
+          s_stakerTokenQuantity[token][msg.sender] = 0;
+          s_totalAmountUSD -= amountUSD;
+          s_stakerBalanceUSD[msg.sender] -= amountUSD;
+
+          token.transfer(msg.sender, quantity);
+
+          emit TotalAmountSatkedChangedUSD(msg.sender, amountUSD, false);
+          emit TokenStakingQuantityChanged(token, msg.sender, quantity, false);
+          emit AmountStakedUSDChanged(token, msg.sender, amountUSD, false);
+          emit StakerBalanceChangedUSD(msg.sender, amountUSD, false);
      }
      //<----------------------------private view/pure functions---------------------------->
 }

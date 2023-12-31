@@ -22,7 +22,7 @@ module.exports = {
                // gasPrice: 130000000000,
                forking: {
                     url: MAINNET_RPC_URL_FOR_FORKING,
-                    blockNumber: 18882986,
+                    blockNumber: 18903445,
                },
           },
           localhost: {
