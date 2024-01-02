@@ -136,8 +136,8 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
 
      function _unStake(
           IERC20 token,
-          uint256 amountUSD,
-          uint256 quantity
+          uint256 quantity,
+          uint256 amountUSD
      ) private {
           s_stakerTokenAmountUSD[token][msg.sender] = 0;
           s_stakerTokenQuantity[token][msg.sender] = 0;
