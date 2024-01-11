@@ -32,7 +32,23 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           public s_stakerTokenAmountUSD;
      mapping(address staker => uint256 balance) public s_stakerBalanceUSD;
      uint256 public s_totalAmountUSD;
-     uint256 public s_Reward;
+     IERC20 public immutable s_rewardToken;
+
+     // Duration of rewards to be paid out (in seconds)
+     uint256 public s_duration;
+     // Timestamp of when the rewards finish
+     uint public s_finishAt;
+     // Minimum of last updated time and reward finish time
+     uint public s_updatedAt;
+     // Reward to be paid out per second
+     uint public s_rewardRate;
+     // Sum of (reward rate * deltaTime * 1e18 / total supply)
+     uint public s_rewardPerTokenStored;
+     // User address => rewardPerTokenStored
+     mapping(address => uint) public s_userRewardPerTokenPaid;
+     // User address => rewards to be claimed
+     mapping(address => uint) public s_rewards;
+
      //<----------------------------events---------------------------->
 
      //isAdded=true, when change is positive
@@ -67,8 +83,42 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      );
      //<----------------------------custom errors---------------------------->
      error StakingWithChainlink__AddressNotValid(address _address);
-
+     error StakingWithChainlink__TokenAlreadyListed(IERC20 token);
+     error StakingWithChainlink__TokenNotListed(IERC20 token);
+     error StakingWithChainlink__DurationNotFinished(
+          uint256 finishAt,
+          uint256 currentTimestamp
+     );
+     error StakingWithChainlink__RewardRateIsZero();
+     error StakingWithChainlink__InsufficientBalanceForRewards(
+          uint256 rewardAmount,
+          uint256 balance
+     );
+     error StakingWithChainlink__GivenQuantityIsZero();
+     error StakingWithChainlink__RewardDurationIsZero();
      //<----------------------------modifiers---------------------------->
+     //update the reward and userRewardRerTokenPaid
+     modifier updateReward(address _account) {
+          console.log(
+               "<-------------------------Contract-------------------------->"
+          );
+          s_rewardPerTokenStored = rewardPerToken();
+          console.log("s_rewardPerTokenStored", s_rewardPerTokenStored);
+          s_updatedAt = lastTimeRewardApplicable();
+          console.log("s_updatedAt", s_updatedAt);
+
+          if (_account != address(0)) {
+               s_rewards[_account] = earned(_account);
+               console.log("s_rewards[_account]", s_rewards[_account]);
+               s_userRewardPerTokenPaid[_account] = s_rewardPerTokenStored;
+               console.log(
+                    "s_userRewardPerTokenPaid[_account]",
+                    s_rewardPerTokenStored
+               );
+          }
+
+          _;
+     }
      //this checks that address is contract address or other address
      modifier isContract(address _address) {
           if (!Utilis.isContract(_address)) {
@@ -76,16 +126,73 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           }
           _;
      }
+     modifier isTokenAlreadyListed(IERC20 token) {
+          if (address(s_tokenPriceFeed[token]) != address(0)) {
+               revert StakingWithChainlink__TokenAlreadyListed(token);
+          }
+          _;
+     }
+     modifier isTokenNotListed(IERC20 token) {
+          if (address(s_tokenPriceFeed[token]) == address(0)) {
+               revert StakingWithChainlink__TokenNotListed(token);
+          }
+          _;
+     }
+     modifier isDurationFinished() {
+          if (s_finishAt > block.timestamp) {
+               revert StakingWithChainlink__DurationNotFinished(
+                    s_finishAt,
+                    block.timestamp
+               );
+          }
+          _;
+     }
+     modifier isQuantityZero(uint256 quantity) {
+          if (quantity == 0) {
+               revert StakingWithChainlink__GivenQuantityIsZero();
+          }
+          _;
+     }
+     // we can use same isQuantityZero==isDurationZero to check zero
+     //but reply become ambiguous
+     //if we add custom message, this cast more
+     modifier isDurationZero() {
+          if (s_duration == 0) {
+               revert StakingWithChainlink__RewardDurationIsZero();
+          }
+          _;
+     }
+     modifier hasBalance(uint256 quantity) {
+          uint256 balance = s_rewardToken.balanceOf(address(this));
+          if (quantity > balance) {
+               revert StakingWithChainlink__InsufficientBalanceForRewards(
+                    quantity,
+                    balance
+               );
+          }
+          _;
+     }
 
      //<----------------------------functions---------------------------->
      //<----------------------------constructor---------------------------->
-     constructor() Ownable(msg.sender) {}
+     constructor(
+          IERC20 rewardToken
+     ) isContract(address(rewardToken)) Ownable(msg.sender) {
+          s_rewardToken = rewardToken;
+     }
 
      //<----------------------------external functions---------------------------->
+
      function setStakingToken(
           IERC20 token,
           AggregatorV3Interface priceFeed
-     ) external isContract(address(token)) isContract(address(priceFeed)) {
+     )
+          external
+          isContract(address(token))
+          isContract(address(priceFeed))
+          isTokenAlreadyListed(token)
+          onlyOwner
+     {
           s_tokenPriceFeed[token] = priceFeed;
           emit TokenListedForStakingChanged(
                token,
@@ -98,24 +205,98 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      function stake(
           IERC20 token,
           uint256 quantity
-     ) external isContract(address(token)) {
+     ) external isTokenNotListed(token) updateReward(msg.sender) {
           token.transferFrom(msg.sender, address(this), quantity);
           uint256 amountUSD = ChainlinkManager.getTotalStakedAmount(
                s_tokenPriceFeed[token],
                quantity
           );
-
           _stake(token, quantity, amountUSD);
      }
 
-     function unStake(IERC20 token) external isContract(address(token)) {
+     function unStake(
+          IERC20 token
+     ) external isContract(address(token)) updateReward(msg.sender) {
           uint256 amountUSD = s_stakerTokenAmountUSD[token][msg.sender];
           uint256 quantity = s_stakerTokenQuantity[token][msg.sender];
 
           _unStake(token, quantity, amountUSD);
      }
 
+     function getReward() external updateReward(msg.sender) {
+          uint reward = s_rewards[msg.sender];
+          if (reward > 0) {
+               s_rewards[msg.sender] = 0;
+               s_rewardToken.transfer(msg.sender, reward);
+          }
+     }
+
+     function setRewardsDuration(
+          uint _duration
+     ) external onlyOwner isDurationFinished {
+          s_duration = _duration;
+     }
+
+     function notifyRewardQuantiy(
+          uint quantity
+     )
+          external
+          onlyOwner
+          isQuantityZero(quantity)
+          isDurationZero
+          updateReward(address(0))
+          hasBalance(quantity)
+     {
+          //calling storage variable to many times cost much more
+          //store in local variable to save some gas
+          uint256 rewardRate = s_rewardRate;
+          uint256 duration = s_duration;
+          uint timestamp = block.timestamp;
+
+          if (timestamp >= s_finishAt) {
+               rewardRate = quantity / duration;
+          } else {
+               uint remainingRewards = (s_finishAt - timestamp) * rewardRate;
+               rewardRate = (quantity + remainingRewards) / duration;
+          }
+
+          if (rewardRate == 0) {
+               revert StakingWithChainlink__RewardRateIsZero();
+          }
+
+          s_finishAt = timestamp + duration;
+          s_updatedAt = timestamp;
+          s_rewardRate = rewardRate;
+     }
+
      //<----------------------------external/public view/pure functions---------------------------->
+     function lastTimeRewardApplicable() public view returns (uint) {
+          // console.log("contract block.timestamp", block.timestamp);
+          // console.log("contract s_finishAt", s_finishAt);
+          return Utilis.min(s_finishAt, block.timestamp);
+     }
+
+     function rewardPerToken() public view returns (uint) {
+          if (s_totalAmountUSD == 0) {
+               // console.log(
+               //      "<----------------contract rewardPerToken function ---------------"
+               // );
+               return s_rewardPerTokenStored;
+          }
+          return
+               s_rewardPerTokenStored +
+               (s_rewardRate *
+                    (lastTimeRewardApplicable() - s_updatedAt) *
+                    1e18) /
+               s_totalAmountUSD;
+     }
+
+     function earned(address _account) public view returns (uint) {
+          return
+               ((s_stakerBalanceUSD[_account] *
+                    (rewardPerToken() - s_userRewardPerTokenPaid[_account])) /
+                    1e18) + s_rewards[_account];
+     }
 
      //<----------------------------private functions---------------------------->
      function _stake(
@@ -127,7 +308,7 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           s_stakerTokenQuantity[token][msg.sender] += quantity;
           s_stakerBalanceUSD[msg.sender] += amountUSD;
           s_stakerTokenAmountUSD[token][msg.sender] += amountUSD;
-
+          // console.log("s_totalAmountUSD", s_totalAmountUSD);
           emit TotalAmountSatkedChangedUSD(msg.sender, amountUSD, true);
           emit TokenStakingQuantityChanged(token, msg.sender, quantity, true);
           emit AmountStakedUSDChanged(token, msg.sender, amountUSD, true);
@@ -151,5 +332,6 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           emit AmountStakedUSDChanged(token, msg.sender, amountUSD, false);
           emit StakerBalanceChangedUSD(msg.sender, amountUSD, false);
      }
+
      //<----------------------------private view/pure functions---------------------------->
 }

@@ -9,4 +9,8 @@ library Utilis {
           }
           return (size > 0);
      }
+
+     function min(uint x, uint y) internal pure returns (uint) {
+          return x <= y ? x : y;
+     }
 }

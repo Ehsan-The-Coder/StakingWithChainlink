@@ -15,6 +15,9 @@ library ChainlinkManager {
           AggregatorV3Interface priceFeed,
           bytes reason
      );
+     error ChainlinkManager__TotalAmountIsZero(
+          AggregatorV3Interface _priceFeed
+     );
 
      /**
       * @param priceFeed passing the price feed address
@@ -60,6 +63,9 @@ library ChainlinkManager {
           if (price > 0) {
                //1e13 keep only 5 decimal places
                totalAmount = ((price * quantity) / 1e13);
+          }
+          if (totalAmount == 0) {
+               revert ChainlinkManager__TotalAmountIsZero(priceFeed);
           }
      }
 }

@@ -279,9 +279,10 @@ const Tokens = [
 ];
 
 const richAccountOfEther = "0x00000000219ab540356cbb839cbe05303d7705fa";
-const decmals = ethers.WeiPerEther; //1000000000000000000n
+const decimals = ethers.WeiPerEther; //1000000000000000000n
 const zeroAddress = ethers.ZeroAddress;
-const amountPassed = 1n * decmals;
+const amountPassed = 1n * decimals;
+const RewardAmount = 1000n * decimals;
 let tokenToStake = 100n;
 
 const developmentChains = ["hardhat", "localhost", "ganache"];
@@ -292,8 +293,9 @@ module.exports = {
      Tokens,
      richAccountOfEther,
      developmentChains,
-     decmals,
+     decimals,
      zeroAddress,
      amountPassed,
      tokenToStake,
+     RewardAmount,
 };

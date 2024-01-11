@@ -1,6 +1,6 @@
 const { ethers, deployments } = require("hardhat");
 
-async function deploy(deployer) {
+async function StakingWithChainlink(deployer) {
      let StakingWithChainlink;
      try {
           //try to fetch already deployed
@@ -23,4 +23,4 @@ async function deploy(deployer) {
      return StakingWithChainlink;
 }
 
-module.exports = { deploy };
+module.exports = { StakingWithChainlink };
