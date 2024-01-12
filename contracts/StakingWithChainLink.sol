@@ -34,6 +34,7 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      uint256 public s_totalAmountUSD;
      IERC20 public immutable s_rewardToken;
 
+     uint private constant DECIMALS = 1e18;
      // Duration of rewards to be paid out (in seconds)
      uint256 public s_duration;
      // Timestamp of when the rewards finish
@@ -42,7 +43,7 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      uint public s_updatedAt;
      // Reward to be paid out per second
      uint public s_rewardRate;
-     // Sum of (reward rate * deltaTime * 1e18 / total supply)
+     // Sum of (reward rate * deltaTime * DECIMALS / total supply)
      uint public s_rewardPerTokenStored;
      // User address => rewardPerTokenStored
      mapping(address => uint) public s_userRewardPerTokenPaid;
@@ -96,27 +97,17 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      );
      error StakingWithChainlink__GivenQuantityIsZero();
      error StakingWithChainlink__RewardDurationIsZero();
+
      //<----------------------------modifiers---------------------------->
      //update the reward and userRewardRerTokenPaid
      modifier updateReward(address _account) {
-          console.log(
-               "<-------------------------Contract-------------------------->"
-          );
           s_rewardPerTokenStored = rewardPerToken();
-          console.log("s_rewardPerTokenStored", s_rewardPerTokenStored);
           s_updatedAt = lastTimeRewardApplicable();
-          console.log("s_updatedAt", s_updatedAt);
 
           if (_account != address(0)) {
                s_rewards[_account] = earned(_account);
-               console.log("s_rewards[_account]", s_rewards[_account]);
                s_userRewardPerTokenPaid[_account] = s_rewardPerTokenStored;
-               console.log(
-                    "s_userRewardPerTokenPaid[_account]",
-                    s_rewardPerTokenStored
-               );
           }
-
           _;
      }
      //this checks that address is contract address or other address
@@ -156,8 +147,8 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      // we can use same isQuantityZero==isDurationZero to check zero
      //but reply become ambiguous
      //if we add custom message, this cast more
-     modifier isDurationZero() {
-          if (s_duration == 0) {
+     modifier isDurationZero(uint256 duration) {
+          if (duration == 0) {
                revert StakingWithChainlink__RewardDurationIsZero();
           }
           _;
@@ -205,7 +196,7 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      function stake(
           IERC20 token,
           uint256 quantity
-     ) external isTokenNotListed(token) updateReward(msg.sender) {
+     ) external isTokenNotListed(token) nonReentrant updateReward(msg.sender) {
           token.transferFrom(msg.sender, address(this), quantity);
           uint256 amountUSD = ChainlinkManager.getTotalStakedAmount(
                s_tokenPriceFeed[token],
@@ -216,14 +207,19 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
 
      function unStake(
           IERC20 token
-     ) external isContract(address(token)) updateReward(msg.sender) {
+     )
+          external
+          isContract(address(token))
+          nonReentrant
+          updateReward(msg.sender)
+     {
           uint256 amountUSD = s_stakerTokenAmountUSD[token][msg.sender];
           uint256 quantity = s_stakerTokenQuantity[token][msg.sender];
 
           _unStake(token, quantity, amountUSD);
      }
 
-     function getReward() external updateReward(msg.sender) {
+     function getReward() external nonReentrant updateReward(msg.sender) {
           uint reward = s_rewards[msg.sender];
           if (reward > 0) {
                s_rewards[msg.sender] = 0;
@@ -232,9 +228,9 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      }
 
      function setRewardsDuration(
-          uint _duration
-     ) external onlyOwner isDurationFinished {
-          s_duration = _duration;
+          uint duration
+     ) external onlyOwner isDurationFinished isDurationZero(duration) {
+          s_duration = duration;
      }
 
      function notifyRewardQuantiy(
@@ -243,7 +239,7 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           external
           onlyOwner
           isQuantityZero(quantity)
-          isDurationZero
+          isDurationZero(s_duration)
           updateReward(address(0))
           hasBalance(quantity)
      {
@@ -254,6 +250,8 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           uint timestamp = block.timestamp;
 
           if (timestamp >= s_finishAt) {
+               //isDurationZero modifier already check weather durations is zero
+               //so we don't get error
                rewardRate = quantity / duration;
           } else {
                uint remainingRewards = (s_finishAt - timestamp) * rewardRate;
@@ -271,23 +269,18 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
 
      //<----------------------------external/public view/pure functions---------------------------->
      function lastTimeRewardApplicable() public view returns (uint) {
-          // console.log("contract block.timestamp", block.timestamp);
-          // console.log("contract s_finishAt", s_finishAt);
           return Utilis.min(s_finishAt, block.timestamp);
      }
 
      function rewardPerToken() public view returns (uint) {
           if (s_totalAmountUSD == 0) {
-               // console.log(
-               //      "<----------------contract rewardPerToken function ---------------"
-               // );
                return s_rewardPerTokenStored;
           }
           return
                s_rewardPerTokenStored +
                (s_rewardRate *
                     (lastTimeRewardApplicable() - s_updatedAt) *
-                    1e18) /
+                    DECIMALS) /
                s_totalAmountUSD;
      }
 
@@ -295,7 +288,14 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           return
                ((s_stakerBalanceUSD[_account] *
                     (rewardPerToken() - s_userRewardPerTokenPaid[_account])) /
-                    1e18) + s_rewards[_account];
+                    DECIMALS) + s_rewards[_account];
+     }
+
+     function getTotalStakedAmount(
+          AggregatorV3Interface priceFeed,
+          uint256 quantity
+     ) public view isContract(address(priceFeed)) returns (uint256) {
+          return ChainlinkManager.getTotalStakedAmount(priceFeed, quantity);
      }
 
      //<----------------------------private functions---------------------------->
@@ -308,7 +308,6 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           s_stakerTokenQuantity[token][msg.sender] += quantity;
           s_stakerBalanceUSD[msg.sender] += amountUSD;
           s_stakerTokenAmountUSD[token][msg.sender] += amountUSD;
-          // console.log("s_totalAmountUSD", s_totalAmountUSD);
           emit TotalAmountSatkedChangedUSD(msg.sender, amountUSD, true);
           emit TokenStakingQuantityChanged(token, msg.sender, quantity, true);
           emit AmountStakedUSDChanged(token, msg.sender, amountUSD, true);

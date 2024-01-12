@@ -19,6 +19,7 @@ const {
      fundDeployers,
      isUndefined,
      transferRewardTokens,
+     getTokenBalance,
 } = require("./import-All.js");
 
 !(
@@ -34,7 +35,6 @@ const {
             //SWCL==StakingWithChainlink
             //RT=RewardToken
             //tAddress==tokenAddress
-            let isTest = false;
             let SWCL,
                  RT,
                  tAddress,
@@ -85,7 +85,6 @@ const {
                  tAddress = Tokens[tIndex]["address"];
                  priceFeed = Tokens[tIndex]["priceFeed"];
             }
-            let isStakingTrue;
             //return token staked amount from chainlink pricefeed
             async function fAmountUSD(isStaking) {
                  let totalAmount = 0n;
@@ -134,18 +133,12 @@ const {
                       rewardPerTokenStored,
                  );
             }
-
             //updateReward(address _account)
             //create a test for this so when ever function call tested
             //that uses this modifier also test this
             async function updateReward(_account) {
-                 console.log(
-                      "<-------------------------Test-------------------------->",
-                 );
                  rewardPerTokenStored = await rewardPerToken();
-                 console.log(`rewardPerTokenStored ${rewardPerTokenStored}`);
                  updatedAt = await lastTimeRewardApplicable();
-                 console.log(`updatedAt ${updatedAt}`);
                  if (_account != zeroAddress) {
                       await isUndefined(rewards, _account);
 
@@ -154,19 +147,12 @@ const {
                       //
                       await isUndefined(userRewardPerTokenPaid, _account);
                       userRewardPerTokenPaid[_account] = rewardPerTokenStored;
-                      console.log(`rewards[_account] ${rewards[_account]}`);
-                      console.log(
-                           `userRewardPerTokenPaid[_account] ${userRewardPerTokenPaid[_account]}`,
-                      );
                  }
             }
 
             //function to get rewardPerToken()
             async function rewardPerToken() {
                  if (totalAmountUSD == 0) {
-                      //   console.log(
-                      //        "<----------------contract rewardPerToken function ---------------",
-                      //   );
                       return rewardPerTokenStored;
                  }
                  const rewardReturn =
@@ -198,7 +184,6 @@ const {
                       rewards[_account];
                  return eranedReturn;
             }
-
             //<----------------------------before---------------------------->
             //
             before(async function () {
@@ -245,7 +230,7 @@ const {
                  it("sets the Reward Token properly", async function () {
                       const rewardTokenAddress = await SWCL.s_rewardToken();
 
-                      assert.notEqual(rewardTokenAddress, zeroAddress);
+                      assert.equal(RT.target, rewardTokenAddress);
                  });
             });
             //
@@ -300,18 +285,66 @@ const {
                  });
             });
             //
+            describe("ChainlinkManager test", function () {
+                 it("ChainlinkManager__RevertedThePriceFeed error|| expect revert if passed wrong priceFeed", async function () {
+                      //not passing the priceFeed Address
+                      txResponse = SWCL.getTotalStakedAmount(
+                           SWCL.target,
+                           tokenToStake,
+                      );
+
+                      await expect(txResponse).to.be.revertedWithCustomError(
+                           SWCL,
+                           "ChainlinkManager__RevertedThePriceFeed",
+                      );
+                 });
+                 it("ChainlinkManager__TotalAmountIsZero error|| expect revert if passed zero token", async function () {
+                      //not passing the priceFeed Address
+                      txResponse = SWCL.getTotalStakedAmount(priceFeed, 0n);
+
+                      await expect(txResponse).to.be.revertedWithCustomError(
+                           SWCL,
+                           "ChainlinkManager__TotalAmountIsZero",
+                      );
+                 });
+                 //
+                 it("test the getTotalStakedAmount function", async function () {
+                      //save every token address and price feed to test
+                      for (let tIndex = 0; tIndex < tLength; tIndex++) {
+                           await settAddressAndPriceFeed(tIndex);
+                           //transactions
+                           const actPrice = await SWCL.getTotalStakedAmount(
+                                priceFeed,
+                                tokenToStake,
+                           );
+                           const expPrice = await getTotalStakedAmount(
+                                deployer,
+                                priceFeed,
+                                tokenToStake,
+                           );
+
+                           assert.equal(actPrice, expPrice);
+                      }
+                 });
+            });
+            //
             describe("setRewardsDurations function", function () {
+                 it("StakingWithChainlink__RewardDurationIsZero error|| expect revert by passing zero durations", async function () {
+                      txResponse = SWCL.setRewardsDuration(0n);
+
+                      await expect(txResponse).to.be.revertedWithCustomError(
+                           SWCL,
+                           "StakingWithChainlink__RewardDurationIsZero",
+                      );
+                 });
                  it("setting the rewardDurations successfuly", async function () {
                       deployer = deployers[ownerIndex];
+                      const thirtyDays = 30n * 24n * 60n * 60n; //thirty days
 
-                      const currentTimestamp = await getTimestamp();
-                      const thirtyDays = 30n * 24n * 60n * 60n;
-                      const rewardDuration = currentTimestamp + thirtyDays;
-
-                      await SWCL.setRewardsDuration(rewardDuration);
+                      await SWCL.setRewardsDuration(thirtyDays);
                       duration = await SWCL.s_duration();
 
-                      assert.equal(rewardDuration, duration);
+                      assert.equal(thirtyDays, duration);
                  });
             });
             //
@@ -524,6 +557,40 @@ const {
                  });
             });
             //
+            describe("getReward function", function () {
+                 it("is we are getting reward from getReward", async function () {
+                      //tIndex==tokenIndex
+                      for (let tIndex = 0; tIndex < 1; tIndex++) {
+                           await settAddressAndPriceFeed(tIndex);
+                           //skip the owner account for testing modifier
+                           for (let dIndex = 1; dIndex < dLength; dIndex++) {
+                                //deployer as staker
+                                deployer = deployers[dIndex];
+                                msgSender = deployer.address;
+
+                                const preBalance = await getTokenBalance(
+                                     RT.target,
+                                     msgSender,
+                                );
+
+                                await SWCL.connect(deployer).getReward();
+                                await updateReward(msgSender);
+
+                                const newBalance = await getTokenBalance(
+                                     RT.target,
+                                     msgSender,
+                                );
+
+                                const actBalance = newBalance - preBalance;
+                                const expBalance = rewards[msgSender];
+
+                                assert.equal(expBalance, actBalance);
+                                rewards[msgSender] = 0n;
+                           }
+                      }
+                 });
+            });
+            //
             describe("unStake function", function () {
                  //test all the event related to Staking
                  async function testUnStakingEvent(amountUSD) {
@@ -624,6 +691,59 @@ const {
                                 //   test
                                 await testUnStakingEvent(amountUSD);
                                 await testValuesSetProperly(amountUSD);
+                           }
+                      }
+                 });
+                 //
+                 it("After staking balances must be zero", async function () {
+                      // tIndex==tokenIndex
+                      for (let tIndex = 0; tIndex < tLength; tIndex++) {
+                           await settAddressAndPriceFeed(tIndex);
+                           //as every thing withdraw so balance must be zero
+                           let expZero = await getTokenBalance(
+                                tAddress,
+                                SWCL.target,
+                           );
+                           assert.equal(0n, expZero);
+
+                           for (let unindex = 1; unindex < dLength; unindex++) {
+                                //deployer as unStaker
+                                deployer = deployers[unindex];
+                                msgSender = deployer.address;
+
+                                //first verify test side values
+                                expZero = tAmountUSD[tAddress][msgSender];
+                                assert.equal(0n, expZero);
+                                //
+                                expZero = tokenQuantity[tAddress][msgSender];
+                                assert.equal(0n, expZero);
+                                //
+                                expZero = balanceUSD[msgSender];
+                                assert.equal(0n, expZero);
+                                //
+                                expZero = totalAmountUSD;
+                                assert.equal(0n, expZero);
+                                //
+                                //
+                                //now verify contract side values
+                                expZero = await SWCL.s_stakerTokenAmountUSD(
+                                     tAddress,
+                                     msgSender,
+                                );
+                                assert.equal(0n, expZero);
+                                //
+                                expZero = await SWCL.s_stakerTokenQuantity(
+                                     tAddress,
+                                     msgSender,
+                                );
+                                assert.equal(0n, expZero);
+                                //
+                                expZero = await SWCL.s_totalAmountUSD();
+                                assert.equal(0n, expZero);
+                                //
+                                expZero =
+                                     await SWCL.s_stakerBalanceUSD(msgSender);
+                                assert.equal(0n, expZero);
                            }
                       }
                  });

@@ -9,10 +9,7 @@ async function RewardToken(deployer) {
           try {
                //if not then new deploy
                await deployments.fixture(["all"]);
-               StakingWithChainlink = await ethers.getContract(
-                    "RewardToken",
-                    deployer,
-               );
+               RewardToken = await ethers.getContract("RewardToken", deployer);
           } catch (error) {
                console.log(error);
           }
