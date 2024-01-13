@@ -65,8 +65,8 @@ module.exports = {
           // customChains: [], // uncomment this line if you are getting a TypeError: customChains is not iterable
      },
      gasReporter: {
-          enabled: false,
-          currency: "PKR",
+          enabled: true,
+          currency: "USD",
           excludeContracts: [
                "test/Token1.sol",
                "test/Token2.sol",
