@@ -8,8 +8,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import {ChainlinkManager} from "./ChainlinkManager.sol";
-import {Utilis} from "./Utilis.sol";
+import {ChainlinkManager} from "./libraries/ChainlinkManager.sol";
+import {Utilis} from "./libraries/Utilis.sol";
 import "hardhat/console.sol";
 
 /**

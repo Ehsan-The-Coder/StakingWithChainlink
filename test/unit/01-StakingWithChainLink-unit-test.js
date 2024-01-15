@@ -20,7 +20,7 @@ const {
      isUndefined,
      transferRewardTokens,
      getTokenBalance,
-} = require("./import-All.js");
+} = require("../../utils/import-All.js");
 
 !(
      developmentChains.includes(network.name) &&
@@ -518,7 +518,7 @@ const {
                  //
                  it("is staking happening properly?", async function () {
                       //tIndex==tokenIndex
-                      for (let tIndex = 0; tIndex < 1; tIndex++) {
+                      for (let tIndex = 0; tIndex < tLength; tIndex++) {
                            await settAddressAndPriceFeed(tIndex);
                            //skip the owner account for testing modifier
                            for (let dIndex = 1; dIndex < dLength; dIndex++) {
@@ -560,7 +560,7 @@ const {
             describe("getReward function", function () {
                  it("is we are getting reward from getReward", async function () {
                       //tIndex==tokenIndex
-                      for (let tIndex = 0; tIndex < 1; tIndex++) {
+                      for (let tIndex = 0; tIndex < tLength; tIndex++) {
                            await settAddressAndPriceFeed(tIndex);
                            //skip the owner account for testing modifier
                            for (let dIndex = 1; dIndex < dLength; dIndex++) {
