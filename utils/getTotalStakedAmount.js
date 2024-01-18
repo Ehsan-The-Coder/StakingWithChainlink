@@ -1,5 +1,4 @@
 const { ethers } = require("hardhat");
-const { testChainlinkABI } = require("../helper-hardhat-config.js");
 
 async function getTotalStakedAmount(signer, priceFeedAddress, amount) {
      try {

@@ -15,26 +15,20 @@ import "hardhat/console.sol";
 /**
  * @title StakingWithChainlink
  * @author Muhammad Ehsan
- * contact https://github.com/EhsanTheCoderr
- * @dev This contract allows staking with Chainlink
+ * contact https://github.com/MuhammadEhsanJutt
+ * @dev This project is a DeFi application that enables users to stake
+ *  their tokens and earn rewards using Chainlink oracles. 
+ * Users can stake any token listed on a decentralized exchange 
+ * and verified by the Chainlink oracle network.
+
  */
 
 contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      //<----------------------------state variable---------------------------->
-     /**
-      * @dev mapping that allows to store Chainlink price feed address
-      */
-     mapping(IERC20 token => AggregatorV3Interface priceFeed)
-          public s_tokenPriceFeed;
-     mapping(IERC20 token => mapping(address staker => uint256 tokenAmount))
-          public s_stakerTokenQuantity;
-     mapping(IERC20 token => mapping(address staker => uint256 amountUSD))
-          public s_stakerTokenAmountUSD;
-     mapping(address staker => uint256 balance) public s_stakerBalanceUSD;
-     uint256 public s_totalAmountUSD;
-     IERC20 public immutable s_rewardToken;
 
      uint private constant DECIMALS = 1e18;
+     //ERC20 token for rewards
+     IERC20 public immutable s_rewardToken;
      // Duration of rewards to be paid out (in seconds)
      uint256 public s_duration;
      // Timestamp of when the rewards finish
@@ -49,7 +43,19 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      mapping(address => uint) public s_userRewardPerTokenPaid;
      // User address => rewards to be claimed
      mapping(address => uint) public s_rewards;
-
+     //hold the total staked amount in usd
+     uint256 public s_totalAmountUSD;
+     //store the priceFeed related to token
+     mapping(IERC20 token => AggregatorV3Interface priceFeed)
+          public s_tokenPriceFeed;
+     //how many tokens any user staked of specific token
+     mapping(IERC20 token => mapping(address staker => uint256 tokenAmount))
+          public s_stakerTokenQuantity;
+     //what is USD value of  any user staked of specific token
+     mapping(IERC20 token => mapping(address staker => uint256 amountUSD))
+          public s_stakerTokenAmountUSD;
+     //how much USD value any user/staker has staked
+     mapping(address staker => uint256 balance) public s_stakerBalanceUSD;
      //<----------------------------events---------------------------->
 
      //isAdded=true, when change is positive
@@ -173,7 +179,11 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
      }
 
      //<----------------------------external functions---------------------------->
-
+     /**
+      * @dev owner can set priceFeed address, and token address
+      * @param token which can be staked
+      * @param priceFeed chainlink oracle price feed of the token
+      */
      function setStakingToken(
           IERC20 token,
           AggregatorV3Interface priceFeed
@@ -193,6 +203,11 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           );
      }
 
+     /**
+      * @dev user can pass the token address and quantity which is being staked token address must be listed for staking
+      * @param token the address of the token listed
+      * @param quantity number of token being staked
+      */
      function stake(
           IERC20 token,
           uint256 quantity
@@ -205,6 +220,10 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           _stake(token, quantity, amountUSD);
      }
 
+     /**
+      * @dev user can pass the token address and quantity which is being staked token address must be listed for staking
+      * @param token the address of the token listed
+      */
      function unStake(
           IERC20 token
      )
@@ -219,6 +238,9 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           _unStake(token, quantity, amountUSD);
      }
 
+     /**
+      * @dev allow user to get their reward
+      */
      function getReward() external nonReentrant updateReward(msg.sender) {
           uint reward = s_rewards[msg.sender];
           if (reward > 0) {
@@ -227,12 +249,20 @@ contract StakingWithChainlink is Ownable, ReentrancyGuard, Pausable {
           }
      }
 
+     /**
+      * @dev allow owner to set reward durations
+      * @param duration time period for which reward is being distributed
+      */
      function setRewardsDuration(
           uint duration
      ) external onlyOwner isDurationFinished isDurationZero(duration) {
           s_duration = duration;
      }
 
+     /**
+      * @dev owner can set the amount of the reward that is being distrubuted
+      * @param quantity amount of token being distributed
+      */
      function notifyRewardQuantiy(
           uint quantity
      )
