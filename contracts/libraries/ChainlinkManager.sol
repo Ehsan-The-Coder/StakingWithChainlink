@@ -2,11 +2,10 @@
 pragma solidity ^0.8.8;
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import "hardhat/console.sol";
 
 /**
  * @title This library return the price feed from Chainlink
- * @author Muhammad Ehsan
+ * @author Muhammad Ehsan   https://github.com/Ehsan-The-Coder
  * Inspired from https://github.com/PatrickAlphaC
  * @notice You are going to pass address and this return the price of token/asset
  */

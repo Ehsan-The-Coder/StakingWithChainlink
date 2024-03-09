@@ -9,6 +9,7 @@ const {
      fundDeployers,
      transferRewardTokens,
      moveTime,
+     zeroAddress,
 } = require("../utils/import-All.js");
 
 let SWCL, RT, deployers, deployer, msgSender, tAddress, priceFeed;
@@ -29,8 +30,8 @@ async function stakeToken() {
      //transfer the rewardTokens to SWCL
      await transferRewardTokens(deployer, SWCL.target);
      await SWCL.notifyRewardQuantiy(RewardAmount);
-     const finishAt = await SWCL.s_finishAt();
-     const rewardRate = await SWCL.s_rewardRate();
+     const finishAt = await SWCL.getFinishAt();
+     const rewardRate = await SWCL.getRewardRate();
      console.log(
           `Reward is set, at Reward Rate ${rewardRate} & Finish At ${finishAt}`,
      );
@@ -53,7 +54,12 @@ async function setStakingToken() {
      for (let tIndex = 0; tIndex < tLength; tIndex++) {
           await settAddressAndPriceFeed(tIndex);
           //transactions
-          await SWCL.setStakingToken(tAddress, priceFeed);
+          //first check if the token already listed or not
+          let priceFeed = await SWCL.getTokenPriceFeed(tAddress);
+          // priceFeed == zeroAddress this means token not listed
+          if (priceFeed == zeroAddress) {
+               await SWCL.setStakingToken(tAddress, priceFeed);
+          }
      }
 }
 

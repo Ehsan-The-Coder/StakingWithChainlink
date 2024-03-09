@@ -104,27 +104,27 @@ const {
             async function testUpdateReward(_account) {
                  assert.equal(
                       rewardPerTokenStored,
-                      await SWCL.s_rewardPerTokenStored(),
+                      await SWCL.getRewardPerTokenStored(),
                  );
                  assert.equal(
                       rewardPerTokenStored,
                       await SWCL.rewardPerToken(),
                  );
 
-                 assert.equal(updatedAt, await SWCL.s_updatedAt());
+                 assert.equal(updatedAt, await SWCL.getUpdatedAt());
 
                  //
                  await isUndefined(rewards, _account);
                  assert.equal(
                       rewards[_account],
-                      await SWCL.s_rewards(_account),
+                      await SWCL.getRewards(_account),
                  );
                  assert.equal(rewards[_account], await SWCL.earned(_account));
                  //
                  isUndefined(userRewardPerTokenPaid, _account);
                  assert.equal(
                       userRewardPerTokenPaid[_account],
-                      await SWCL.s_rewardPerTokenStored(),
+                      await SWCL.getRewardPerTokenStored(),
                  );
                  assert.equal(
                       userRewardPerTokenPaid[_account],
@@ -226,7 +226,7 @@ const {
                       assert.equal(owner, msgSender);
                  });
                  it("sets the Reward Token properly", async function () {
-                      const rewardTokenAddress = await SWCL.s_rewardToken();
+                      const rewardTokenAddress = await SWCL.getRewardToken();
 
                       assert.equal(RT.target, rewardTokenAddress);
                  });
@@ -266,7 +266,7 @@ const {
 
                            //2nd test to check mapping
                            const expPriceFeed =
-                                await SWCL.s_tokenPriceFeed(tAddress);
+                                await SWCL.getTokenPriceFeed(tAddress);
                            assert.equal(expPriceFeed, priceFeed);
                            tPriceFeed[tAddress] = priceFeed;
                       }
@@ -340,7 +340,7 @@ const {
                       const thirtyDays = 30n * 24n * 60n * 60n; //thirty days
 
                       await SWCL.setRewardsDuration(thirtyDays);
-                      duration = await SWCL.s_duration();
+                      duration = await SWCL.getDuration();
 
                       assert.equal(thirtyDays, duration);
                  });
@@ -418,9 +418,9 @@ const {
                            //update the common values of updateReward() modifier
                            await updateReward(zeroAddress);
                            //test
-                           assert.equal(finishAt, await SWCL.s_finishAt());
-                           assert.equal(updatedAt, await SWCL.s_updatedAt());
-                           assert.equal(rewardRate, await SWCL.s_rewardRate());
+                           assert.equal(finishAt, await SWCL.getFinishAt());
+                           assert.equal(updatedAt, await SWCL.getUpdatedAt());
+                           assert.equal(rewardRate, await SWCL.getRewardRate());
                            //test the common values of updateReward() modifier
                            await testUpdateReward(zeroAddress);
                       }
@@ -434,7 +434,7 @@ const {
                       const rewardDuration = currentTimestamp + thirtyDays;
 
                       txResponse = SWCL.setRewardsDuration(rewardDuration);
-                      duration = await SWCL.s_duration();
+                      duration = await SWCL.getDuration();
                       await expect(txResponse).to.be.revertedWithCustomError(
                            SWCL,
                            "StakingWithChainlink__DurationNotFinished",
@@ -494,18 +494,19 @@ const {
                       const expBalanceUSD = balanceUSD[msgSender];
                       const expTotalAmountUSD = totalAmountUSD;
 
-                      const actTokenQuantity = await SWCL.s_stakerTokenQuantity(
-                           tAddress,
-                           msgSender,
-                      );
-                      const acttAmountUSD = await SWCL.s_stakerTokenAmountUSD(
+                      const actTokenQuantity =
+                           await SWCL.getStakerTokenQuantity(
+                                tAddress,
+                                msgSender,
+                           );
+                      const acttAmountUSD = await SWCL.getStakerTokenAmountUSD(
                            tAddress,
                            msgSender,
                       );
                       const actBalanceUSD =
-                           await SWCL.s_stakerBalanceUSD(msgSender);
+                           await SWCL.getStakerBalanceUSD(msgSender);
                       const actualTotalAmountUSD =
-                           await SWCL.s_totalAmountUSD();
+                           await SWCL.getTotalAmountUSD();
 
                       //test values
                       assert.equal(expTokenQuantity, actTokenQuantity);
@@ -632,19 +633,19 @@ const {
                       const expTotalAmountUSD = totalAmountUSD;
 
                       const actualUntokenQuantity =
-                           await SWCL.s_stakerTokenQuantity(
+                           await SWCL.getStakerTokenQuantity(
                                 tAddress,
                                 msgSender,
                            );
                       const actualUntAmountUSD =
-                           await SWCL.s_stakerTokenAmountUSD(
+                           await SWCL.getStakerTokenAmountUSD(
                                 tAddress,
                                 msgSender,
                            );
                       const actBalanceUSD =
-                           await SWCL.s_stakerBalanceUSD(msgSender);
+                           await SWCL.getStakerBalanceUSD(msgSender);
                       const actualTotalAmountUSD =
-                           await SWCL.s_totalAmountUSD();
+                           await SWCL.getTotalAmountUSD();
 
                       //test values
                       assert.equal(expUntokenQuantity, actualUntokenQuantity);
@@ -724,23 +725,23 @@ const {
                                 //
                                 //
                                 //now verify contract side values
-                                expZero = await SWCL.s_stakerTokenAmountUSD(
+                                expZero = await SWCL.getStakerTokenAmountUSD(
                                      tAddress,
                                      msgSender,
                                 );
                                 assert.equal(0n, expZero);
                                 //
-                                expZero = await SWCL.s_stakerTokenQuantity(
+                                expZero = await SWCL.getStakerTokenQuantity(
                                      tAddress,
                                      msgSender,
                                 );
                                 assert.equal(0n, expZero);
                                 //
-                                expZero = await SWCL.s_totalAmountUSD();
+                                expZero = await SWCL.getTotalAmountUSD();
                                 assert.equal(0n, expZero);
                                 //
                                 expZero =
-                                     await SWCL.s_stakerBalanceUSD(msgSender);
+                                     await SWCL.getStakerBalanceUSD(msgSender);
                                 assert.equal(0n, expZero);
                            }
                       }

@@ -41,7 +41,7 @@ To get started with this project, clone the repository and install the dependenc
 1. Clone the repository and navigate to the newly created folder:
 
      ```bash
-     git clone https://github.com/MuhammadEhsanJutt/StakingWithChainlink.git
+     git clone https://github.com/Ehsan-The-Coder/StakingWithChainlink.git
      cd StakingWithChainlink
      ```
 
